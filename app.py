@@ -1,83 +1,76 @@
 import streamlit as st
-from domain.models import BloodGasData
-from core.analyzers.acid_base import AcidBaseAnalyzer
 from adapters.ocr_service import GasoOCR
+from core.analyzers.acid_base import AcidBaseAnalyzer
 
-# Configuração da página para aproveitar o hardware do seu Ryzen 5
-st.set_page_config(page_title="GasoScan Pro OCR", layout="wide", page_icon="🩸")
+# Configuração da página com o estilo profissional que você definiu
+st.set_page_config(
+    page_title="GasoScan | Clinical Analysis", 
+    page_icon="🩸", 
+    layout="centered"
+)
 
-st.title("🩸 GasoScan: Inteligência Clínica")
-st.markdown("---")
+# Inicialização dos motores (OCR e Analisador) no estado da sessão
+if 'ocr' not in st.session_state:
+    st.session_state.ocr = GasoOCR()
+if 'analyzer' not in st.session_state:
+    st.session_state.analyzer = AcidBaseAnalyzer()
 
-# Inicializa o motor de OCR (Cache para não recarregar a cada clique)
-@st.cache_resource
-def load_ocr():
-    return GasoOCR()
+st.title("🩸 GasoScan")
+st.markdown("### Interpretador de Gasometria com Visão Computacional")
+st.info("Desenvolvido para suporte à decisão clínica no internato.")
 
-ocr_engine = load_ocr()
-
-# 1. Seção de Upload de Imagem (Visão Computacional)
-st.subheader("📷 Entrada de Dados: Foto do Laudo")
-uploaded_file = st.file_uploader("Suba o print ou foto da gasometria", type=['png', 'jpg', 'jpeg'])
-
-# Dicionário para armazenar valores lidos pela IA
-ocr_values = {}
+# Área de Upload
+uploaded_file = st.file_uploader("Suba a foto do laudo (pH, pCO2, BIC, Na, Cl)", type=['png', 'jpg', 'jpeg'])
 
 if uploaded_file:
-    with st.spinner("IA processando o laudo..."):
-        try:
-            ocr_values = ocr_engine.scan_image(uploaded_file)
-            if ocr_values:
-                st.success("✅ Valores extraídos com sucesso! Confira na barra lateral.")
-            else:
-                st.warning("⚠️ Não identifiquei valores claros. Verifique a iluminação da foto.")
-        except Exception as e:
-            st.error(f"Erro no processamento da imagem: {e}")
+    # 1. Processamento de Imagem
+    with st.spinner('IA lendo o laudo... (pode demorar alguns segundos na nuvem)'):
+        # Aqui descompactamos os DOIS valores que o novo ocr_service retorna
+        data, raw_text = st.session_state.ocr.scan_image(uploaded_file)
+        
+    # 2. Modo Debug para Pesquisador (Expander)
+    with st.expander("🔍 Ver texto bruto extraído pela IA (Debug)"):
+        st.write(f"O que a IA leu: `{raw_text}`")
+        st.caption("Se algum valor não foi identificado, verifique se a sigla apareceu corretamente aqui.")
 
-# 2. Formulário de Dados na Barra Lateral (Sidebar)
-with st.sidebar:
-    st.header("📋 Parâmetros Clínicos")
+    # 3. Conferência de Dados (Permite correção manual rápida)
+    st.subheader("Confirme os Valores")
+    col1, col2, col3 = st.columns(3)
     
-    # Preenche automaticamente com o que a IA leu, ou usa os padrões
-    ph = st.number_input("pH", 6.8, 7.8, ocr_values.get("ph", 7.40), 0.01, format="%.2f")
-    pco2 = st.number_input("pCO2 (mmHg)", 10.0, 130.0, ocr_values.get("pco2", 40.0), 0.1)
-    hco3 = st.number_input("HCO3- (mEq/L)", 5.0, 50.0, ocr_values.get("hco3", 24.0), 0.1)
-    
-    st.markdown("---")
-    st.header("🧪 Eletrólitos (Opcional)")
-    # Se a IA não ler, o campo fica vazio para preenchimento manual
-    na = st.number_input("Sódio (Na+)", value=ocr_values.get("na"))
-    cl = st.number_input("Cloro (Cl-)", value=ocr_values.get("cl"))
-    alb = st.number_input("Albumina (g/dL)", value=4.5)
+    with col1:
+        ph = st.number_input("pH", value=data.get("ph", 7.40), step=0.01, format="%.2f")
+    with col2:
+        pco2 = st.number_input("pCO2", value=data.get("pco2", 40.0), step=1.0)
+    with col3:
+        hco3 = st.number_input("HCO3 (BIC)", value=data.get("hco3", 24.0), step=1.0)
 
-# 3. Execução da Análise Clínica
-if st.button("Executar Análise Clínica", type="primary"):
-    try:
-        # Cria o objeto de dados com as validações do Pydantic
-        data = BloodGasData(ph=ph, pco2=pco2, hco3=hco3, na=na, cl=cl, albumina=alb)
-        
-        # Chama o analisador profissional
-        analyzer = AcidBaseAnalyzer(data)
-        result = analyzer.analyze()
-        
-        st.markdown("### 📋 Diagnóstico Final")
-        
-        # Exibe os distúrbios com cores diferenciadas
-        for d in result['disorders']:
-            if "Normal" in d:
-                st.success(f"✅ **{d}**")
+    col4, col5 = st.columns(2)
+    with col4:
+        na = st.number_input("Sódio (Na+)", value=data.get("na", 140.0), step=1.0)
+    with col5:
+        cl = st.number_input("Cloro (Cl-)", value=data.get("cl", 104.0), step=1.0)
+
+    # 4. Análise Clínica
+    if st.button("🚀 Gerar Análise Completa"):
+        with st.spinner('Calculando distúrbios e compensações...'):
+            # Chama o analisador com os dados conferidos
+            results = st.session_state.analyzer.analyze(ph, pco2, hco3, na, cl)
+            
+            st.divider()
+            st.subheader("Resultado do Diagnóstico")
+            
+            # Exibição do Status Principal
+            if "Acidose" in results.get("primary", ""):
+                st.error(f"**{results['primary']}**")
+            elif "Alcalose" in results.get("primary", ""):
+                st.warning(f"**{results['primary']}**")
             else:
-                st.error(f"🚨 **{d}**")
-        
-        # Exibe notas de cálculo (Anion Gap, Delta/Delta, etc.)
-        if result['notes']:
-            with st.expander("💡 Notas de Interpretação e Cálculos", expanded=True):
-                for n in result['notes']:
-                    st.write(f"- {n}")
-                    
-    except Exception as e:
-        st.error(f"🚨 Erro na validação: {e}")
+                st.success(f"**Status: {results['status']}**")
 
-# Rodapé com status do sistema
-st.markdown("---")
-st.caption("GasoScan v1.0 - Desenvolvido para auxílio diagnóstico clínico.")
+            # Exibição de Cálculos Extras (Delta/Delta e Ânion Gap)
+            if results.get("delta_delta"):
+                st.info(results["delta_delta"])
+                st.caption("Análise de distúrbios triplos baseada na relação $\Delta AG / \Delta HCO_3$.")
+
+st.sidebar.markdown("---")
+st.sidebar.caption(f"GasoScan v1.0 | Feira de Santana, BA")
