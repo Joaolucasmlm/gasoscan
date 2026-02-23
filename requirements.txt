@@ -1,8 +1,5 @@
 streamlit
-easyocr
 pydantic
-matplotlib
-pandas
-opencv-python-headless
+google-generativeai
 Pillow
-numpy
+pandas

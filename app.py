@@ -11,7 +11,9 @@ st.set_page_config(
 
 # Inicialização dos motores
 if 'ocr' not in st.session_state:
-    st.session_state.ocr = GasoOCR()
+    # Puxa a chave do arquivo secrets.toml (local) ou do painel Secrets (nuvem)
+    api_key = st.secrets["GEMINI_API_KEY"]
+    st.session_state.ocr = GasoOCR(api_key=api_key)
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = AcidBaseAnalyzer()
 
