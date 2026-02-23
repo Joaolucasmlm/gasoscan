@@ -4,3 +4,5 @@ pydantic
 matplotlib
 pandas
 opencv-python-headless
+Pillow
+numpy
