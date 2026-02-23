@@ -1,0 +1,13 @@
+# Ambientes virtuais (nunca suba a pasta venv)
+venv/
+env/
+.env
+
+# Python (arquivos temporários)
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Streamlit e Visão Computacional
+.streamlit/
+easyocr_models/
