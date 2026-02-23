@@ -2,14 +2,14 @@ import streamlit as st
 from adapters.ocr_service import GasoOCR
 from core.analyzers.acid_base import AcidBaseAnalyzer
 
-# Configuração da página com o estilo profissional que você definiu
+# Configuração da página
 st.set_page_config(
     page_title="GasoScan | Clinical Analysis", 
     page_icon="🩸", 
     layout="centered"
 )
 
-# Inicialização dos motores (OCR e Analisador) no estado da sessão
+# Inicialização dos motores
 if 'ocr' not in st.session_state:
     st.session_state.ocr = GasoOCR()
 if 'analyzer' not in st.session_state:
@@ -19,21 +19,16 @@ st.title("🩸 GasoScan")
 st.markdown("### Interpretador de Gasometria com Visão Computacional")
 st.info("Desenvolvido para suporte à decisão clínica no internato.")
 
-# Área de Upload
 uploaded_file = st.file_uploader("Suba a foto do laudo (pH, pCO2, BIC, Na, Cl)", type=['png', 'jpg', 'jpeg'])
 
 if uploaded_file:
-    # 1. Processamento de Imagem
     with st.spinner('IA lendo o laudo... (pode demorar alguns segundos na nuvem)'):
-        # Aqui descompactamos os DOIS valores que o novo ocr_service retorna
         data, raw_text = st.session_state.ocr.scan_image(uploaded_file)
         
-    # 2. Modo Debug para Pesquisador (Expander)
     with st.expander("🔍 Ver texto bruto extraído pela IA (Debug)"):
         st.write(f"O que a IA leu: `{raw_text}`")
         st.caption("Se algum valor não foi identificado, verifique se a sigla apareceu corretamente aqui.")
 
-    # 3. Conferência de Dados (Permite correção manual rápida)
     st.subheader("Confirme os Valores")
     col1, col2, col3 = st.columns(3)
     
@@ -50,16 +45,13 @@ if uploaded_file:
     with col5:
         cl = st.number_input("Cloro (Cl-)", value=data.get("cl", 104.0), step=1.0)
 
-    # 4. Análise Clínica
     if st.button("🚀 Gerar Análise Completa"):
         with st.spinner('Calculando distúrbios e compensações...'):
-            # Chama o analisador com os dados conferidos
             results = st.session_state.analyzer.analyze(ph, pco2, hco3, na, cl)
             
             st.divider()
             st.subheader("Resultado do Diagnóstico")
             
-            # Exibição do Status Principal
             if "Acidose" in results.get("primary", ""):
                 st.error(f"**{results['primary']}**")
             elif "Alcalose" in results.get("primary", ""):
@@ -67,10 +59,14 @@ if uploaded_file:
             else:
                 st.success(f"**Status: {results['status']}**")
 
-            # Exibição de Cálculos Extras (Delta/Delta e Ânion Gap)
+            # Exibe a fórmula de Winter, se houver
+            if results.get("compensation"):
+                st.info(results["compensation"])
+
+            # Exibe o Delta/Delta, se houver
             if results.get("delta_delta"):
                 st.info(results["delta_delta"])
                 st.caption("Análise de distúrbios triplos baseada na relação $\Delta AG / \Delta HCO_3$.")
 
 st.sidebar.markdown("---")
-st.sidebar.caption(f"GasoScan v1.0 | Feira de Santana, BA")
+st.sidebar.caption("GasoScan v1.0 | Desenvolvido para pesquisa médica e prática clínica.")
