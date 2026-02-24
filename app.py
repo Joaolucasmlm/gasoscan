@@ -19,6 +19,7 @@ if 'analyzer' not in st.session_state:
 st.title("🩸 GasoScan")
 st.markdown("### Interpretador de Gasometria Avançado")
 
+# ESCOLHA DO MÉTODO DE ENTRADA
 input_method = st.radio(
     "Como deseja inserir os dados do exame?",
     ["📸 Ler laudo com IA", "⌨️ Digitar Manualmente"],
@@ -27,18 +28,21 @@ input_method = st.radio(
 
 st.divider()
 
-data = {}
+data = {} 
 
 if input_method == "📸 Ler laudo com IA":
     uploaded_file = st.file_uploader("Suba a foto do laudo (Word, impresso ou tela)", type=['png', 'jpg', 'jpeg'])
+    
     if uploaded_file:
         with st.spinner('Analisando laudo com IA...'):
             data, raw_text = st.session_state.ocr.scan_image(uploaded_file)
+            
         with st.expander("🔍 Ver retorno da IA (Debug)"):
             st.write(f"```json\n{raw_text}\n```")
 else:
     st.info("💡 Preencha os valores diretamente nos campos abaixo.")
 
+# CAMPOS DE ENTRADA
 st.subheader("Valores da Gasometria")
 col1, col2, col3 = st.columns(3)
 
@@ -55,8 +59,9 @@ with col4:
 with col5:
     cl = st.number_input("Cloro (Cl-)", value=data.get("cl", 104.0), step=1.0)
 
+# MOTOR CLÍNICO
 if st.button("🚀 Gerar Análise Completa", use_container_width=True):
-    with st.spinner('Calculando distúrbios e compensações...'):
+    with st.spinner('Calculando distúrbios e etiologias...'):
         results = st.session_state.analyzer.analyze(ph, pco2, hco3, na, cl)
         
         st.divider()
@@ -66,11 +71,11 @@ if st.button("🚀 Gerar Análise Completa", use_container_width=True):
 
         primary = results.get("primary", "")
         if "Acidose" in primary:
-            st.error(f"**Distúrbios:** {primary}")
+            st.error(f"**Distúrbios Identificados:** {primary}")
         elif "Alcalose" in primary:
-            st.warning(f"**Distúrbios:** {primary}")
+            st.warning(f"**Distúrbios Identificados:** {primary}")
         elif primary:
-            st.info(f"**Distúrbios:** {primary}")
+            st.info(f"**Distúrbios Identificados:** {primary}")
         else:
             st.success("**Status:** Normal")
 
@@ -82,6 +87,18 @@ if st.button("🚀 Gerar Análise Completa", use_container_width=True):
                 st.error(conclusion)
             else:
                 st.info(conclusion)
+                
+        # Exibição dinâmica das Etiologias
+        causas = results.get("causes", {})
+        if causas:
+            st.divider()
+            st.subheader("📚 Investigação Etiológica")
+            st.caption("Principais causas associadas aos distúrbios encontrados neste paciente:")
+            
+            for disturbio, lista_causas in causas.items():
+                with st.expander(f"Causas de {disturbio}", expanded=True):
+                    for causa in lista_causas:
+                        st.markdown(f"- {causa}")
             
 st.sidebar.markdown("---")
-st.sidebar.caption("GasoScan v3.0 | Motor com Cronicidade e Compensação Integradas")
+st.sidebar.caption("GasoScan v4.0 | Cronicidade, Compensação e Etiologias Integradas")
