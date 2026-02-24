@@ -7,7 +7,7 @@ class GasoOCR:
         # Autentica com a chave que está nos Secrets
         genai.configure(api_key=api_key)
         # Modelo mais rápido e inteligente para visão
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
         
     def scan_image(self, image_bytes):
         img = Image.open(image_bytes)
