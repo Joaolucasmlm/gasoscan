@@ -69,19 +69,27 @@ if st.button("🚀 Gerar Análise Completa", use_container_width=True):
         st.divider()
         st.subheader("Resultado do Diagnóstico")
         
-        if "Acidose" in results.get("primary", ""):
-            st.error(f"**{results['primary']}**")
-        elif "Alcalose" in results.get("primary", ""):
-            st.warning(f"**{results['primary']}**")
+        # 1. Exibe o Status do pH
+        st.write(f"**Status Inicial:** {results.get('status', '')}")
+
+        # 2. Exibe os Distúrbios Primários/Mistos
+        primary = results.get("primary", "")
+        if "Acidose" in primary:
+            st.error(f"**Distúrbios:** {primary}")
+        elif "Alcalose" in primary:
+            st.warning(f"**Distúrbios:** {primary}")
+        elif primary:
+            st.info(f"**Distúrbios:** {primary}")
         else:
-            st.success(f"**Status: {results['status']}**")
+            st.success("**Status:** Normal")
 
-        if results.get("compensation"):
-            st.info(results["compensation"])
-
-        if results.get("delta_delta"):
-            st.info(results["delta_delta"])
-            st.caption("Análise de distúrbios triplos baseada na relação $\Delta AG / \Delta HCO_3$.")
+        # 3. Exibe a Conclusão de Compensação com as cores visuais (✅ ou ❌)
+        conclusion = results.get("conclusion", "")
+        if conclusion:
+            if "✅" in conclusion:
+                st.success(conclusion)
+            elif "❌" in conclusion:
+                st.error(conclusion)
             
 st.sidebar.markdown("---")
 st.sidebar.caption("GasoScan v2.0 | Motor Híbrido: Manual & IA")
